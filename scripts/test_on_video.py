@@ -36,6 +36,7 @@ def parse_args() -> argparse.Namespace:
         help='Manual court corners as JSON: "[[x1,y1],[x2,y2],[x3,y3],[x4,y4]]"',
     )
     p.add_argument("--no-yolo", action="store_true", help="Skip YOLO, use blob detection only.")
+    p.add_argument("--ball-model", type=Path, default=None, help="Path to fine-tuned ball detection weights (.pt).")
     p.add_argument("--save-every", type=int, default=60, help="Save a snapshot every N frames.")
     return p.parse_args()
 
@@ -175,6 +176,7 @@ def main() -> None:
 
     # --- Init trackers ---
     ball_tracker = BallTracker(
+        model_path=args.ball_model,
         conf_threshold=0.25,
         blob_fallback=True,
     )

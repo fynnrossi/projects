@@ -107,6 +107,15 @@ class BallTracker:
         path = self._model_path or "yolov8n.pt"
         self._model = YOLO(str(path))
 
+    @classmethod
+    def from_trained(cls, weights_path: str | Path, **kwargs) -> "BallTracker":
+        """Create a tracker using a fine-tuned squash ball model.
+
+        Usage:
+            tracker = BallTracker.from_trained("training/runs/squash_ball/weights/best.pt")
+        """
+        return cls(model_path=weights_path, conf_threshold=kwargs.pop("conf_threshold", 0.30), **kwargs)
+
     # ------------------------------------------------------------------
     # Kalman filter helpers
     # ------------------------------------------------------------------
@@ -143,13 +152,24 @@ class BallTracker:
         """Run YOLO and return (x, y, confidence) or None."""
         if self._model is None:
             self._load_model()
+
+        # Determine if this is a fine-tuned single-class model or generic COCO
+        num_classes = len(self._model.names)  # type: ignore[union-attr]
+        is_finetuned = num_classes == 1
+
         results = self._model(frame, verbose=False)  # type: ignore[union-attr]
         best = None
         best_conf = 0.0
         for result in results:
             for box in result.boxes:
                 conf = float(box.conf[0])
-                # Accept sports-ball class (32 in COCO) or any class if fine-tuned
+                cls = int(box.cls[0])
+
+                # For generic COCO: only accept sports-ball (class 32)
+                # For fine-tuned: accept class 0 (squash_ball)
+                if not is_finetuned and cls != 32:
+                    continue
+
                 if conf > best_conf and conf >= self.conf_threshold:
                     x1, y1, x2, y2 = box.xyxy[0].tolist()
                     cx, cy = (x1 + x2) / 2, (y1 + y2) / 2

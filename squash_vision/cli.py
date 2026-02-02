@@ -30,6 +30,9 @@ def analyze(
         None,
         help='Court corners as JSON: [[x1,y1],[x2,y2],[x3,y3],[x4,y4]]',
     ),
+    ball_model: Path = typer.Option(
+        None, "--ball-model", help="Path to fine-tuned YOLOv8 weights for ball detection.",
+    ),
     skip_player: bool = typer.Option(False, "--skip-player", help="Skip player detection."),
     every_n: int = typer.Option(1, "--every-n", help="Process every Nth frame."),
     max_frames: int = typer.Option(None, "--max-frames", help="Stop after N frames."),
@@ -44,6 +47,7 @@ def analyze(
         corners_px = np.array(json.loads(corners), dtype=np.float32)
 
     analyzer = SessionAnalyzer(
+        ball_model_path=ball_model,
         court_corners_px=corners_px,
         skip_player=skip_player,
         process_every_n=every_n,
