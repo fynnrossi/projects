@@ -117,6 +117,8 @@ def detect_court_corners(
     canny_high: int = 150,
     hough_threshold: int = 120,
     min_line_length: int = 100,
+    seed_corners: np.ndarray | None = None,
+    seed_tolerance: float = 0.25,
 ) -> np.ndarray | None:
     """Attempt to auto-detect the four court corners via edge/line detection.
 
@@ -125,6 +127,17 @@ def detect_court_corners(
       2. Canny edge detection.
       3. Probabilistic Hough line transform.
       4. Cluster lines into the dominant quadrilateral.
+
+    Parameters
+    ----------
+    seed_corners : np.ndarray, optional
+        4x2 approximate corner positions (from ``CameraProfile.seed_corners``).
+        When provided, candidate quadrilaterals are scored by proximity to
+        these seeds, significantly improving detection from known camera
+        positions.
+    seed_tolerance : float
+        Maximum distance (as fraction of frame diagonal) a detected corner
+        can be from a seed to count as a match.  Default 0.25 (25%).
 
     Returns the four corner points in pixel space (ordered) or ``None`` if
     detection fails.
@@ -144,22 +157,47 @@ def detect_court_corners(
     if lines is None or len(lines) < 4:
         return None
 
-    # Find the largest quadrilateral contour from the edge map.
+    # Find quadrilateral contours from the edge map.
     contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = sorted(contours, key=cv2.contourArea, reverse=True)
 
-    for contour in contours[:5]:
+    h, w = frame.shape[:2]
+    diag = np.sqrt(w ** 2 + h ** 2)
+    max_seed_dist = seed_tolerance * diag
+
+    candidates: list[tuple[float, np.ndarray]] = []
+
+    for contour in contours[:10]:
         peri = cv2.arcLength(contour, True)
         approx = cv2.approxPolyDP(contour, 0.02 * peri, True)
-        if len(approx) == 4:
-            return _order_corners(approx.reshape(4, 2).astype(np.float32))
+        if len(approx) != 4:
+            continue
+        ordered = _order_corners(approx.reshape(4, 2).astype(np.float32))
 
-    return None
+        if seed_corners is not None:
+            # Score by total distance from seed corners
+            dists = np.linalg.norm(ordered - seed_corners, axis=1)
+            if np.any(dists > max_seed_dist):
+                continue  # A corner is too far from its seed
+            score = float(np.sum(dists))
+        else:
+            # No seeds: prefer largest area
+            score = -cv2.contourArea(contour)
+
+        candidates.append((score, ordered))
+
+    if not candidates:
+        return None
+
+    # Pick best candidate (lowest score)
+    candidates.sort(key=lambda t: t[0])
+    return candidates[0][1]
 
 
 def calibrate_court(
     frame: np.ndarray,
     corners_px: np.ndarray | None = None,
+    camera_profile: "CameraProfile | None" = None,
 ) -> CourtCalibration:
     """Build a ``CourtCalibration`` from a frame.
 
@@ -170,6 +208,10 @@ def calibrate_court(
     corners_px : np.ndarray, optional
         Four court corner pixel coords [front-left, front-right, back-right,
         back-left].  If ``None``, automatic detection is attempted.
+    camera_profile : CameraProfile, optional
+        Camera placement profile.  When provided (and ``corners_px`` is
+        ``None``), seeds the auto-detector with approximate corner
+        positions and tuned Canny/Hough parameters for the viewing angle.
 
     Raises
     ------
@@ -177,10 +219,20 @@ def calibrate_court(
         If automatic detection fails and no manual corners were provided.
     """
     if corners_px is None:
-        corners_px = detect_court_corners(frame)
+        detect_kwargs: dict = {}
+        seed_corners = None
+
+        if camera_profile is not None:
+            detect_kwargs.update(camera_profile.court_detection_params)
+            h, w = frame.shape[:2]
+            seed_corners = camera_profile.seed_corners(w, h)
+            detect_kwargs["seed_corners"] = seed_corners
+
+        corners_px = detect_court_corners(frame, **detect_kwargs)
         if corners_px is None:
             raise RuntimeError(
-                "Automatic court detection failed. Provide corners_px manually."
+                "Automatic court detection failed. Provide corners_px manually "
+                "or try a different --camera-preset."
             )
 
     corners_px = np.asarray(corners_px, dtype=np.float32).reshape(4, 2)

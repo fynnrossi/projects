@@ -1,1 +1,1 @@
-"""Core vision modules: court detection, ball tracking, player detection."""
+"""Core vision modules: court detection, ball tracking, player detection, camera profiles."""

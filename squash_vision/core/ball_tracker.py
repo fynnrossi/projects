@@ -80,11 +80,13 @@ class BallTracker:
         model_path: Path | str | None = None,
         conf_threshold: float = 0.35,
         blob_fallback: bool = True,
+        camera_profile: "CameraProfile | None" = None,
     ) -> None:
         self.conf_threshold = conf_threshold
         self.blob_fallback = blob_fallback
         self._model = None
         self._model_path = model_path
+        self._camera_profile = camera_profile
 
         # Kalman filter state (initialised on first detection)
         self._kalman: cv2.KalmanFilter | None = None
@@ -128,7 +130,8 @@ class BallTracker:
         kf.transitionMatrix = np.array(
             [[1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0], [0, 0, 0, 1]], dtype=np.float32
         )
-        kf.processNoiseCov = np.eye(4, dtype=np.float32) * 1e-2
+        process_noise = self._camera_profile.kalman_process_noise if self._camera_profile else 1e-2
+        kf.processNoiseCov = np.eye(4, dtype=np.float32) * process_noise
         kf.measurementNoiseCov = np.eye(2, dtype=np.float32) * 1e-1
         kf.statePost = np.array([x, y, 0, 0], dtype=np.float32)
         self._kalman = kf
@@ -183,11 +186,17 @@ class BallTracker:
         fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
 
         contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        # Filter by area — squash ball is small
+        # Filter by area — squash ball is small.
+        # Use camera-aware size range if available.
+        if self._camera_profile:
+            area_min, area_max = self._camera_profile.expected_ball_area_range
+        else:
+            area_min, area_max = 20, 800
+
         candidates = []
         for c in contours:
             area = cv2.contourArea(c)
-            if 20 < area < 800:
+            if area_min < area < area_max:
                 M = cv2.moments(c)
                 if M["m00"] > 0:
                     cx = M["m10"] / M["m00"]

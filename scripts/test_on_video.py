@@ -37,6 +37,13 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--no-yolo", action="store_true", help="Skip YOLO, use blob detection only.")
     p.add_argument("--ball-model", type=Path, default=None, help="Path to fine-tuned ball detection weights (.pt).")
+    p.add_argument(
+        "--camera-preset",
+        type=str,
+        default=None,
+        help="Camera placement preset: back_wall_left, back_wall_right, "
+             "back_wall_centre, back_wall_centre_high, side_left, side_right.",
+    )
     p.add_argument("--save-every", type=int, default=60, help="Save a snapshot every N frames.")
     return p.parse_args()
 
@@ -113,6 +120,7 @@ def main() -> None:
     try:
         from squash_vision.core.court import calibrate_court, draw_court_overlay
         from squash_vision.core.ball_tracker import BallTracker
+        from squash_vision.core.camera import get_preset, list_presets
         from squash_vision.core.player import PlayerDetector
         from squash_vision.analysis.shot_classifier import segment_shots, classify_shots
         from squash_vision.analysis.scoring import score_session
@@ -120,6 +128,16 @@ def main() -> None:
         print(f"Import error: {e}")
         print("Run: pip install -e .  (from the project root)")
         sys.exit(1)
+
+    # Resolve camera profile
+    camera_profile = None
+    if args.camera_preset:
+        try:
+            camera_profile = get_preset(args.camera_preset)
+            print(f"Camera preset: {args.camera_preset}")
+        except KeyError:
+            print(f"Unknown preset '{args.camera_preset}'. Available: {', '.join(list_presets())}")
+            sys.exit(1)
 
     # Setup output dirs
     out_dir = args.output_dir / args.video.stem
@@ -156,12 +174,14 @@ def main() -> None:
         corners_px = np.array(json.loads(args.corners), dtype=np.float32)
 
     try:
-        calibration = calibrate_court(first_frame, corners_px=corners_px)
+        calibration = calibrate_court(
+            first_frame, corners_px=corners_px, camera_profile=camera_profile,
+        )
         print("Court calibration: OK")
         court_ok = True
     except RuntimeError as e:
         print(f"Court calibration: FAILED ({e})")
-        print("  -> Continuing without court mapping. Provide --corners manually.")
+        print("  -> Continuing without court mapping. Provide --corners or --camera-preset.")
         print("  -> Tip: open the first frame, note the pixel coords of the 4 court corners.")
         calibration = None
         court_ok = False
@@ -179,6 +199,7 @@ def main() -> None:
         model_path=args.ball_model,
         conf_threshold=0.25,
         blob_fallback=True,
+        camera_profile=camera_profile,
     )
     if args.no_yolo:
         # Force blob-only by setting a very high YOLO threshold

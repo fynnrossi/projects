@@ -21,6 +21,7 @@ import numpy as np
 from squash_vision.analysis.scoring import SessionScore, score_session
 from squash_vision.analysis.shot_classifier import Shot, classify_shots, segment_shots
 from squash_vision.core.ball_tracker import BallTracker, Trajectory
+from squash_vision.core.camera import CameraProfile
 from squash_vision.core.court import CourtCalibration, calibrate_court
 from squash_vision.core.player import PlayerDetection, PlayerDetector
 
@@ -77,12 +78,17 @@ class SessionAnalyzer:
         ball_model_path: Path | str | None = None,
         player_model_path: Path | str | None = None,
         court_corners_px: np.ndarray | None = None,
+        camera_profile: CameraProfile | None = None,
         skip_player: bool = False,
         process_every_n: int = 1,
     ) -> None:
-        self._ball_tracker = BallTracker(model_path=ball_model_path)
+        self._ball_tracker = BallTracker(
+            model_path=ball_model_path,
+            camera_profile=camera_profile,
+        )
         self._player_detector = PlayerDetector(model_path=player_model_path) if not skip_player else None
         self._court_corners_px = court_corners_px
+        self._camera_profile = camera_profile
         self._process_every_n = max(1, process_every_n)
 
     def analyze(
@@ -117,7 +123,11 @@ class SessionAnalyzer:
         if not ret:
             raise RuntimeError("Cannot read first frame from video.")
 
-        calibration = calibrate_court(first_frame, corners_px=self._court_corners_px)
+        calibration = calibrate_court(
+            first_frame,
+            corners_px=self._court_corners_px,
+            camera_profile=self._camera_profile,
+        )
 
         # Rewind
         cap.set(cv2.CAP_PROP_POS_FRAMES, 0)

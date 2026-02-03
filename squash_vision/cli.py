@@ -30,6 +30,12 @@ def analyze(
         None,
         help='Court corners as JSON: [[x1,y1],[x2,y2],[x3,y3],[x4,y4]]',
     ),
+    camera_preset: str = typer.Option(
+        None,
+        "--camera-preset",
+        help="Camera placement preset. Options: back_wall_left, back_wall_right, "
+             "back_wall_centre, back_wall_centre_high, side_left, side_right.",
+    ),
     ball_model: Path = typer.Option(
         None, "--ball-model", help="Path to fine-tuned YOLOv8 weights for ball detection.",
     ),
@@ -41,14 +47,26 @@ def analyze(
     import numpy as np
 
     from squash_vision.analysis.session import SessionAnalyzer
+    from squash_vision.core.camera import get_preset, list_presets
 
     corners_px = None
     if corners:
         corners_px = np.array(json.loads(corners), dtype=np.float32)
 
+    camera_profile = None
+    if camera_preset:
+        try:
+            camera_profile = get_preset(camera_preset)
+            console.print(f"Using camera preset: [bold]{camera_preset}[/bold]")
+        except KeyError:
+            options = ", ".join(list_presets())
+            console.print(f"[red]Unknown preset '{camera_preset}'. Available: {options}[/red]")
+            raise typer.Exit(1)
+
     analyzer = SessionAnalyzer(
         ball_model_path=ball_model,
         court_corners_px=corners_px,
+        camera_profile=camera_profile,
         skip_player=skip_player,
         process_every_n=every_n,
     )
