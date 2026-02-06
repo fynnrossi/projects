@@ -1,0 +1,12 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  position: relative;
+}
+
+.app-content {
+  flex: 1;
+  padding-bottom: var(--nav-height);
+  overflow-y: auto;
+}

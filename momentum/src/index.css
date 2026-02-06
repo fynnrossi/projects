@@ -1,0 +1,109 @@
+/* ─── CSS Custom Properties ────────────────────────────────────── */
+:root {
+  --bg-primary: #FAFAF8;
+  --bg-secondary: #F2F0ED;
+  --bg-card: #FFFFFF;
+  --bg-dark: #1A1A2E;
+  --bg-overlay: rgba(26, 26, 46, 0.6);
+
+  --text-primary: #1A1A2E;
+  --text-secondary: #6B6B80;
+  --text-tertiary: #9B9BAD;
+  --text-inverse: #FFFFFF;
+
+  --accent-primary: #6C5CE7;
+  --accent-primary-light: #A29BFE;
+  --accent-secondary: #FF6B6B;
+  --accent-warm: #FFB347;
+  --accent-success: #2ED573;
+  --accent-rose: #FF4757;
+
+  --tier-spark: #FFB347;
+  --tier-flame: #FF6B6B;
+  --tier-fire: #C471F5;
+  --tier-supernova: #FFD700;
+
+  --gradient-primary: linear-gradient(135deg, #6C5CE7 0%, #A29BFE 100%);
+  --gradient-warm: linear-gradient(135deg, #FF6B6B 0%, #FFB347 100%);
+  --gradient-supernova: linear-gradient(135deg, #FFD700 0%, #FF6B6B 50%, #C471F5 100%);
+
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
+  --shadow-xl: 0 16px 50px rgba(0,0,0,0.16);
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --nav-height: 72px;
+  --header-height: 56px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  overflow-x: hidden;
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100vh;
+  position: relative;
+  box-shadow: 0 0 80px rgba(0,0,0,0.05);
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+img { max-width: 100%; display: block; }
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+a { text-decoration: none; color: inherit; }
+input, textarea { font-family: inherit; font-size: inherit; }
+
+::-webkit-scrollbar { width: 0; background: transparent; }
+
+@keyframes fadeIn {
+  from { opacity: 0; } to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); }
+}
